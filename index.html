@@ -37,7 +37,7 @@
 	let connections = [];
 
 	let margeActivation = 20;
-	let margeEncoreActif = 60;
+	let margeEncoreActif = 100;
 
 	let son;
 	let pasSecondes;
@@ -227,6 +227,9 @@
 		createCanvas(windowWidth, windowHeight);
 		pixelDensity(1);
 
+		margeActivation = width/40;
+		margeEncoreActif = margeActivation * 5;
+
 		let pas = 100;
 		let nombre = 20;
 
@@ -281,6 +284,11 @@
 	{
 		simulate();
 		image(img, 0, 0, width, height);
+
+		noStroke();
+		fill(200);
+		text("Essayez avec votre propre appareil :", 0, height - textAscent() * 2 - textDescent());
+		text("https://aalno.github.io/ddisplay/", 0, height - textAscent());
 
 		/*
 		strokeWeight(margeEncoreActif * 2);
