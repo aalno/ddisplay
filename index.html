@@ -21,7 +21,7 @@
 <body>
 <script>
 	const POINT_SIZE = 10;
-	const LINE_WEIGHT = 10;
+	const LINE_WEIGHT = 15;
 	// Maximum distance to drag a point from 
 	const DRAG_DISTANCE = POINT_SIZE * 2;
 	//Friction to apply after bouncing
@@ -41,6 +41,8 @@
 
 	let son;
 	let pasSecondes;
+
+	let img;
 
 	class Vector
 	{
@@ -117,6 +119,7 @@
 			prevPosition, 
 			dragging: false,
 			connections: [],
+			locked: false,
 			actif: false,
 			instant,
 			son: son
@@ -176,7 +179,7 @@
 				point(this.x, this.y);
 			}
 			strokeWeight(POINT_SIZE);
-			stroke((this.actif) ? "cyan" : "#fff");
+			stroke((this.locked) ? "red" : ((this.actif) ? "cyan" : "#fff"));
 			point(this.x, this.y);
 
 			strokeWeight(1);
@@ -216,6 +219,7 @@
 	function preload()
 	{
 		son = loadSound('cassette.mp3');
+		img = loadImage("fond.png");
 	}
 
 	function setup()
@@ -223,27 +227,77 @@
 		createCanvas(windowWidth, windowHeight);
 		pixelDensity(1);
 
-		let longueur = width;
+		let pas = 100;
 		let nombre = 20;
 
-		let pas = longueur / (nombre - 1);
+		let longueur = pas * (nombre + 1);
 
 		pasSecondes = map(pas, 0, longueur, 0, son.duration());
 
-		points.push(new Point( {position: new Vector(0, height / 2)}, 0));
+		let listeCoins = [];
+
+		listeCoins.push([new Vector((width/100 * 40), (height/100 * 110)), 0]);
+		listeCoins.push([new Vector((width/100 * 40), (height/100 * 70)), 2]);
+		listeCoins.push([new Vector((width/100 * 8), (height/100 * 40)), 3]);
+		listeCoins.push([new Vector((width/100 * 92), (height/100 * 40)), 10]);
+		listeCoins.push([new Vector((width/100 * 60), (height/100 * 70)), 3]);
+		listeCoins.push([new Vector((width/100 * 60), (height/100 * 110)), 2]);
+
+		points.push(new Point( {position: new Vector((width/100 * 40), (height/100 * 110)) }, 0));
+		for (let i = 1 ; i < listeCoins.length ; i++)
+		{
+			traitPoints(listeCoins[i][1], listeCoins[i - 1][0].x, listeCoins[i - 1][0].y, listeCoins[i][0].x, listeCoins[i][0].y);
+		}
+
+		for (let i = 1 ; i < nombre + 1 ; i++)
+		{
+			points[i].instant = i * pasSecondes;
+			points[i - 1].connect(points[i]);
+		}
+
+		points[0].locked = points[points.length - 1].locked = true;
+
+		/*
 		for (let i = 1, x = pas, s = pasSecondes ; i < nombre ; i++, x += pas, s += pasSecondes)
 		{
 			points.push(new Point( {position: new Vector(x, height / 2)}, s - 0.1));
 			points[i - 1].connect(points[i]);
+		}
+		*/
+	}
+
+	function traitPoints(nombre, x1, y1, x2, y2) //Nécessite un premier point
+	{
+		let dx = (x2 - x1)/nombre;
+		let dy = (y2 - y1)/nombre;
+
+		for (let i = 0, x = x1 + dx, y = y1 + dy ; i < nombre ; i++, x += dx, y += dy)
+		{
+			points.push(new Point( {position: new Vector(x, y)}, 0));
 		}
 	}
 
 	function draw()
 	{
 		simulate();
-		background("#335");
+		image(img, 0, 0, width, height);
+
+		/*
+		strokeWeight(margeEncoreActif * 2);
+		stroke(255, 50);
+		line(width / 2, 0, width / 2, height);
+		*/
+
+		strokeWeight(margeActivation * 2);
+		stroke(0, 10);
+		line(width / 2, 0, width / 2, height);
+
+		strokeWeight(1);
+		stroke("black");
+		line(width / 2, 0, width / 2, height);
 
 		// Milieu
+		/*
 		strokeWeight(margeEncoreActif * 2);
 		stroke("pink");
 		line(width / 2, 0, width / 2, height);
@@ -253,6 +307,7 @@
 		strokeWeight(1);
 		stroke("black");
 		line(width / 2, 0, width / 2, height);
+		*/
 
 		var m = 0; 
 		var dx1 = 0; 
@@ -310,17 +365,18 @@
 			dy1 = dy2; 
 			preP = curP;
 
-			stroke("grey");
+			stroke("black");
 			endShape();
 		}
 
-		points.forEach(p => p.draw());
+		//points.forEach(p => p.draw());
 	}
 
 	function gradient(a, b) { return (b.y-a.y)/(b.x-a.x); } 
 
 	function simulate()
 	{
+		let activite = false;
 		for (let point of points)
 		{
 			if (point.dragging)
@@ -331,15 +387,18 @@
 				point.position.y = mouseY;
 			}
 
-			point.applyFriction(AIR_FRICTION);
+			if (!point.locked)
+			{
+				point.applyFriction(AIR_FRICTION);
 
-			let before = point.position.clone();
-			// Continue moving as before
-			const vel = point.position.subtract(point.prevPosition);
+				let before = point.position.clone();
+				// Continue moving as before
+				const vel = point.position.subtract(point.prevPosition);
 
-			point.position = point.position.add(vel);
-			// Reassign prevPos
-			point.prevPosition = before;
+				point.position = point.position.add(vel);
+				// Reassign prevPos
+				point.prevPosition = before;
+			}
 
 			if (!point.actif)
 			{
@@ -352,12 +411,17 @@
 			else if (point.x < width/2 - margeEncoreActif || point.x > width/2 + margeEncoreActif)
 			{
 				point.actif = false;
-				point.arreter();
+				//point.arreter();
 			}
 			else
 			{
+				activite = true;
 				point.appliquerPousse(2);
 			}
+		}
+		if (!activite)
+		{
+			points.forEach(p => p.arreter());
 		}
 
 		for (let i = 0; i < ITERATION_COUNT; i++)
@@ -373,6 +437,18 @@
 				connection.p1.position = connection.p1.position.multiply(connection.give).add(newpos.multiply(1 - connection.give));
 				newpos = center.subtract(dir.multiply(connection.length / 2));
 				connection.p2.position = connection.p2.position.multiply(connection.give).add(newpos.multiply(1 - connection.give));
+
+				if (!connection.p1.locked)
+				{
+					let newpos = center.add(dir.multiply(connection.length / 2));
+					connection.p1.position = connection.p1.position.multiply(connection.give).add(newpos.multiply(1 - connection.give));
+				}
+
+				if (!connection.p2.locked)
+				{
+				let newpos = center.subtract(dir.multiply(connection.length / 2));
+				connection.p2.position = connection.p2.position.multiply(connection.give).add(newpos.multiply(1 - connection.give));
+				}
 			}
 		}
 	}
@@ -384,14 +460,17 @@
 
 	function mousePressed()
 	{
-		let closest = points[0];
-		points.forEach((p) =>
+		if (points.length > 0)
 		{
-			if (p.position.distance(new Vector(mouseX, mouseY)) < closest.position.distance(new Vector(mouseX, mouseY)))
-				closest = p;
-		});
-		if (new Vector(closest.position.x - mouseX, closest.position.y - mouseY).length < POINT_SIZE) closest.dragging = true;
-		return false;
+			let closest = points[0];
+			points.forEach((p) =>
+			{
+				if (p.position.distance(new Vector(mouseX, mouseY)) < closest.position.distance(new Vector(mouseX, mouseY)))
+					closest = p;
+			});
+			if (new Vector(closest.position.x - mouseX, closest.position.y - mouseY).length < POINT_SIZE * 6) closest.dragging = true;
+			return false;
+		}
 	}
 
 	function mix(num1, num2, amt)
